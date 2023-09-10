@@ -1,6 +1,7 @@
 # S3 compatible Object Storage using MinIO
 
-MinIO is an S3 compatible Object Storage. These notes cover setting up MinIO as a single container on a  Docker host to provide Object Storage
+MinIO is an S3 compatible Object Storage. These notes cover setting up two MinIO servers and an Nginx reverse proxy on a Docker host to provide Object Storage.
+For more information: https://github.com/minio/minio/tree/master/docs/orchestration/docker-compose
 
 ## Installing Docker
 
@@ -37,7 +38,7 @@ By default, Docker commands require root permissions. Running a command will reu
 
 The reason is the permissions, only root and the docker user-group members can access the Docker socket:
 
-> ls -l /var/run/docker.sock                                                                                                                                                     1 ✘ 
+> ls -l /var/run/docker.sock
 > srw-rw---- 1 root docker 0 Sep  9 13:53 /var/run/docker.sock
 
 To run Docker as your user, you will need to add yourself to the docker group.
@@ -45,7 +46,7 @@ To run Docker as your user, you will need to add yourself to the docker group.
 First, use _getent_ to check if the Docker user group exists on the host machine. 
 
 >
-> getent group docker                                                                                                                                                              ✔ 
+> getent group docker
 > docker:x:962:
 
 Alternatively check the grpups you are in 
@@ -84,41 +85,71 @@ Compose is for defining and running multi-container Docker applications. Applica
 >
 > sudo pacman -S docker-compose
 >
-> docker-compose -v                                                                                                                                                         ✔  9s  
+> docker-compose -v
 > Docker Compose version 2.20.3
 
 
-## Installing MinIO
+## Installing and Running  MinIO
 
-### Define
+### Service definition
 
-We will use a Compose YAML to define how to start MinIO. It specifies:
-* The secrets for the root admin to login later to the WebUI using the environment variables MINIO_ROOT_USER and  MINIO_ROOT_PASSWORD.
-* The port 9001 will be the port, we access the WebUI
+We will use a Compose YAML to define how to start MinIO and Nginx. It specifies:
+* Two MinIO containers minio1 and minio2 
+* Both expose ports 9000 and 9001. Port 9001 will be the port, for the WebUI
+* The secrets for the root admin to login later to the WebUI using the environment variables MINIO_ROOT_USER and  MINIO_ROOT_PASSWORD are in the .env file
 * Bind mounts the local directory /docker/minio on the Docker host to the container under the /data directory
-
+* The thrid service is Nginx x which serves as a reverse for Mino.  
+* The Nginx config file defines two servers for port Minio and the cosole
 
 ```
-	version: '2'
+version: '3'
 
-    services:
-		minio:
-			container_name: Minio
-			command: server /data --console-address ":9001"
-			environment:
-				- MINIO_ROOT_USER=<username>
-				- MINIO_ROOT_PASSWORD=<password>
-	image: quay.io/minio/minio:latest
-    ports:
-      - '9000:9000'
-      - '9001:9001'
-    volumes:
-      - /docker/minio:/data
+services:
+  minio1:
+    container_name: Minio
+    hostname: minio1
+    image: quay.io/minio/minio:latest
+    command: server /data  --console-address ":9001"
     restart: unless-stopped
+    env_file:
+      - .env
+    expose:
+      - '9000'
+      - '9001'
+    volumes:
+      - /docker/minio1:/data
+
+  minio2:
+    container_name: minio2
+    hostname: minio2
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    env_file:
+      - .env
+    expose:
+      - '9000'
+      - '9001'
+    volumes:
+      - /docker/minio2:/data
+
+
+  nginx:
+    image: nginx:alpine
+    hostname: nginx
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    depends_on:
+      - minio1
+      - minio2
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
 ```
 
-### Run container
-Use `docker-cmpose` to start MinIO
+### Run containers
+
+Use `docker-cmpose` to start MinIO and Nginx
 
 ```
 docker-compose up -d
