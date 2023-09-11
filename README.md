@@ -159,6 +159,16 @@ docker-compose up -d
  ✔ Container Minio        Started
 ```
 
+List conainers to see which ports are used and how the are mapped
+
+```
+> docker container ls
+CONTAINER ID   IMAGE                        COMMAND                  CREATED          STATUS         PORTS                                                                   NAMES
+4bca5d8b33be   nginx:alpine                 "/docker-entrypoint.…"   9 seconds ago    Up 8 seconds   80/tcp, 0.0.0.0:9000-9001->9000-9001/tcp, :::9000-9001->9000-9001/tcp   minio-nginx-1
+c3d841967a93   quay.io/minio/minio:latest   "/usr/bin/docker-ent…"   10 seconds ago   Up 8 seconds   9000-9001/tcp                                                           minio2
+a09e15958445   quay.io/minio/minio:latest   "/usr/bin/docker-ent…"   10 seconds ago   Up 8 seconds   9000-9001/tcp                                                           minio1
+```
+
 
 Open a browser and browse the port defined for the web UI: _http://localhost:9001_. That should opne the MinIO administraot UI. Sign in using the credentials deined in the YAML
 

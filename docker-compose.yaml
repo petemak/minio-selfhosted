@@ -2,7 +2,7 @@ version: '3'
 
 services:
   minio1:
-    container_name: Minio
+    container_name: minio1
     hostname: minio1
     image: quay.io/minio/minio:latest
     command: server /data  --console-address ":9001"
@@ -14,6 +14,8 @@ services:
       - '9001'
     volumes:
       - /docker/minio1:/data
+    networks:
+      - ngix-minio-ntw
 
   minio2:
     container_name: minio2
@@ -28,16 +30,26 @@ services:
       - '9001'
     volumes:
       - /docker/minio2:/data
+    networks:
+      - ngix-minio-ntw
 
 
   nginx:
     image: nginx:alpine
     hostname: nginx
     ports:
-      - "9000:9000"
-      - "9001:9001"
+     # - "80:80"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     depends_on:
       - minio1
       - minio2
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - ngix-minio-ntw
+
+networks:
+  ngix-minio-ntw:
+    driver: bridge
+  
